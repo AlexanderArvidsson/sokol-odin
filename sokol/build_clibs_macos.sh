@@ -5,12 +5,12 @@ FRAMEWORKS_OPENGL="-framework OpenGL"
 FRAMEWORKS_CORE="-framework Foundation -framework CoreGraphics -framework Cocoa -framework QuartzCore -framework CoreAudio -framework AudioToolbox"
 
 build_lib() {
-    src=$1
-    dst=$2
-    backend=$3
-    arch=$4
-    dep=$5
-    extra=$6
+    local src=$1
+    local dst=$2
+    local backend=$3
+    local arch=$4
+    local dep=$5
+    local extra=$6
     echo $dst
 
     # static
@@ -19,9 +19,9 @@ build_lib() {
 
     # shared
     if [ $backend = "SOKOL_METAL" ]; then
-        frameworks="${frameworks} ${FRAMEWORKS_METAL}"
+        local frameworks="${frameworks} ${FRAMEWORKS_METAL}"
     else
-        frameworks="${frameworks} ${FRAMEWORKS_OPENGL}"
+        local frameworks="${frameworks} ${FRAMEWORKS_OPENGL}"
     fi
     MACOSX_DEPLOYMENT_TARGET=10.13 cc -c -O2 -x objective-c -arch $arch -DNDEBUG -DIMPL -D$backend c/$src.c
     cc -dynamiclib -arch $arch $FRAMEWORKS_CORE $frameworks -o $dst.dylib $src.o $dep

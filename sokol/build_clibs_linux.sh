@@ -1,11 +1,11 @@
 set -e
 
 build_lib_x64() {
-    src=$1
-    dst=$2
-    backend=$3
-    dep=$4
-    extra=$5
+    local src=$1
+    local dst=$2
+    local backend=$3
+    local dep=$4
+    local extra=$5
     echo $dst
 
     # static
@@ -13,6 +13,7 @@ build_lib_x64() {
     ar rcs $dst.a $src.o $dep
 
     # shared
+    echo "cc -pthread -shared -fPIC -DIMPL -D$backend -o $dst.so c/$src.c $dep $extra"
     cc -pthread -shared -fPIC -DIMPL -D$backend -o $dst.so c/$src.c $dep $extra
 }
 
