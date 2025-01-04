@@ -1,127 +1,72 @@
 set -e
 
-build_lib_arm64_release() {
+FRAMEWORKS_METAL="-framework Metal -framework MetalKit"
+FRAMEWORKS_OPENGL="-framework OpenGL"
+FRAMEWORKS_CORE="-framework Foundation -framework CoreGraphics -framework Cocoa -framework QuartzCore -framework CoreAudio -framework AudioToolbox"
+
+build_lib() {
     src=$1
     dst=$2
     backend=$3
+    arch=$4
+    dep=$5
+    extra=$6
     echo $dst
-    MACOSX_DEPLOYMENT_TARGET=10.13 cc -c -O2 -x objective-c -arch arm64 -DNDEBUG -DIMPL -D$backend c/$src.c
-    ar rcs $dst.a $src.o
+
+    # static
+    MACOSX_DEPLOYMENT_TARGET=10.13 cc -c -x objective-c -arch $arch -DIMPL -D$backend c/$src.c $dep $extra
+    ar rcs $dst.a $src.o $dep
+
+    # shared
+    if [ $backend = "SOKOL_METAL" ]; then
+        frameworks="${frameworks} ${FRAMEWORKS_METAL}"
+    else
+        frameworks="${frameworks} ${FRAMEWORKS_OPENGL}"
+    fi
+    MACOSX_DEPLOYMENT_TARGET=10.13 cc -c -O2 -x objective-c -arch $arch -DNDEBUG -DIMPL -D$backend c/$src.c
+    cc -dynamiclib -arch $arch $FRAMEWORKS_CORE $frameworks -o $dst.dylib $src.o $dep
+
 }
 
-build_lib_arm64_debug() {
-    src=$1
-    dst=$2
-    backend=$3
-    echo $dst
-    MACOSX_DEPLOYMENT_TARGET=10.13 cc -c -g -x objective-c -arch arm64 -DIMPL -D$backend c/$src.c
-    ar rcs $dst.a $src.o
-}
+libs=(log gfx app glue time audio debugtext shape gl)
 
-build_lib_x64_release() {
-    src=$1
-    dst=$2
-    backend=$3
-    echo $dst
-    MACOSX_DEPLOYMENT_TARGET=10.13 cc -c -O2 -x objective-c -arch x86_64 -DNDEBUG -DIMPL -D$backend c/$src.c
-    ar rcs $dst.a $src.o
-}
+imgui_path=$(./check_imgui_path.sh)
+if [[ $? -eq 0 && -n "$imgui_path" ]]; then
+    libs=(imgui)
+fi
 
-build_lib_x64_debug() {
-    src=$1
-    dst=$2
-    backend=$3
-    echo $dst
-    MACOSX_DEPLOYMENT_TARGET=10.13 cc -c -g -x objective-c -arch x86_64 -DIMPL -D$backend c/$src.c
-    ar rcs $dst.a $src.o
-}
+echo "building libs (${libs[@]})"
 
-# ARM + Metal + Release
-build_lib_arm64_release sokol_log         log/sokol_log_macos_arm64_metal_release SOKOL_METAL
-build_lib_arm64_release sokol_gfx         gfx/sokol_gfx_macos_arm64_metal_release SOKOL_METAL
-build_lib_arm64_release sokol_app         app/sokol_app_macos_arm64_metal_release SOKOL_METAL
-build_lib_arm64_release sokol_glue        glue/sokol_glue_macos_arm64_metal_release SOKOL_METAL
-build_lib_arm64_release sokol_time        time/sokol_time_macos_arm64_metal_release SOKOL_METAL
-build_lib_arm64_release sokol_audio       audio/sokol_audio_macos_arm64_metal_release SOKOL_METAL
-build_lib_arm64_release sokol_debugtext   debugtext/sokol_debugtext_macos_arm64_metal_release SOKOL_METAL
-build_lib_arm64_release sokol_shape       shape/sokol_shape_macos_arm64_metal_release SOKOL_METAL
-build_lib_arm64_release sokol_gl          gl/sokol_gl_macos_arm64_metal_release SOKOL_METAL
+for lib in "${libs[@]}"; do
+    dep=""
+    extra=""
 
-# ARM + Metal + Debug
-build_lib_arm64_debug sokol_log           log/sokol_log_macos_arm64_metal_debug SOKOL_METAL
-build_lib_arm64_debug sokol_gfx           gfx/sokol_gfx_macos_arm64_metal_debug SOKOL_METAL
-build_lib_arm64_debug sokol_app           app/sokol_app_macos_arm64_metal_debug SOKOL_METAL
-build_lib_arm64_debug sokol_glue          glue/sokol_glue_macos_arm64_metal_debug SOKOL_METAL
-build_lib_arm64_debug sokol_time          time/sokol_time_macos_arm64_metal_debug SOKOL_METAL
-build_lib_arm64_debug sokol_audio         audio/sokol_audio_macos_arm64_metal_debug SOKOL_METAL
-build_lib_arm64_debug sokol_debugtext     debugtext/sokol_debugtext_macos_arm64_metal_debug SOKOL_METAL
-build_lib_arm64_debug sokol_shape         shape/sokol_shape_macos_arm64_metal_debug SOKOL_METAL
-build_lib_arm64_debug sokol_gl            gl/sokol_gl_macos_arm64_metal_debug SOKOL_METAL
+    if [[ $lib == imgui ]]; then
+        dep="$imgui_path/c_imgui.o $imgui_path/imgui.o $imgui_path/imgui_demo.o $imgui_path/imgui_draw.o $imgui_path/imgui_widgets.o $imgui_path/imgui_tables.o"
+        extra="-DImTextureID=uint64_t -DSOKOL_IMGUI_CPREFIX=ImGui_ -DCIMGUI_HEADER_PATH=\"$imgui_path/c_imgui.h\" -lstdc++"
+    fi
 
-# x64 + Metal + Release
-build_lib_x64_release sokol_log         log/sokol_log_macos_x64_metal_release SOKOL_METAL
-build_lib_x64_release sokol_gfx         gfx/sokol_gfx_macos_x64_metal_release SOKOL_METAL
-build_lib_x64_release sokol_app         app/sokol_app_macos_x64_metal_release SOKOL_METAL
-build_lib_x64_release sokol_glue        glue/sokol_glue_macos_x64_metal_release SOKOL_METAL
-build_lib_x64_release sokol_time        time/sokol_time_macos_x64_metal_release SOKOL_METAL
-build_lib_x64_release sokol_audio       audio/sokol_audio_macos_x64_metal_release SOKOL_METAL
-build_lib_x64_release sokol_debugtext   debugtext/sokol_debugtext_macos_x64_metal_release SOKOL_METAL
-build_lib_x64_release sokol_shape       shape/sokol_shape_macos_x64_metal_release SOKOL_METAL
-build_lib_x64_release sokol_gl          gl/sokol_gl_macos_x64_metal_release SOKOL_METAL
+    # ARM + Metal + Release
+    build_lib sokol_$lib $lib/sokol_log_macos_arm64_metal_release SOKOL_METAL arm64 "${dep[@]}" "${extra[@]} -O2 -DNDEBUG"
 
-# x64 + Metal + Debug
-build_lib_x64_debug sokol_log           log/sokol_log_macos_x64_metal_debug SOKOL_METAL
-build_lib_x64_debug sokol_gfx           gfx/sokol_gfx_macos_x64_metal_debug SOKOL_METAL
-build_lib_x64_debug sokol_app           app/sokol_app_macos_x64_metal_debug SOKOL_METAL
-build_lib_x64_debug sokol_glue          glue/sokol_glue_macos_x64_metal_debug SOKOL_METAL
-build_lib_x64_debug sokol_time          time/sokol_time_macos_x64_metal_debug SOKOL_METAL
-build_lib_x64_debug sokol_audio         audio/sokol_audio_macos_x64_metal_debug SOKOL_METAL
-build_lib_x64_debug sokol_debugtext     debugtext/sokol_debugtext_macos_x64_metal_debug SOKOL_METAL
-build_lib_x64_debug sokol_shape         shape/sokol_shape_macos_x64_metal_debug SOKOL_METAL
-build_lib_x64_debug sokol_gl            gl/sokol_gl_macos_x64_metal_debug SOKOL_METAL
+    # ARM + Metal + Debug
+    build_lib sokol_$lib $lib/sokol_log_macos_arm64_metal_debug SOKOL_METAL arm64 "${dep[@]}" "${extra[@]} -g"
 
-# ARM + GL + Release
-build_lib_arm64_release sokol_log         log/sokol_log_macos_arm64_gl_release SOKOL_GLCORE
-build_lib_arm64_release sokol_gfx         gfx/sokol_gfx_macos_arm64_gl_release SOKOL_GLCORE
-build_lib_arm64_release sokol_app         app/sokol_app_macos_arm64_gl_release SOKOL_GLCORE
-build_lib_arm64_release sokol_glue        glue/sokol_glue_macos_arm64_gl_release SOKOL_GLCORE
-build_lib_arm64_release sokol_time        time/sokol_time_macos_arm64_gl_release SOKOL_GLCORE
-build_lib_arm64_release sokol_audio       audio/sokol_audio_macos_arm64_gl_release SOKOL_GLCORE
-build_lib_arm64_release sokol_debugtext   debugtext/sokol_debugtext_macos_arm64_gl_release SOKOL_GLCORE
-build_lib_arm64_release sokol_shape       shape/sokol_shape_macos_arm64_gl_release SOKOL_GLCORE
-build_lib_arm64_release sokol_gl          gl/sokol_gl_macos_arm64_gl_release SOKOL_GLCORE
+    # x64 + Metal + Release
+    build_lib sokol_$lib $lib/sokol_log_macos_x64_metal_release SOKOL_METAL x86_64 "${dep[@]}" "${extra[@]} -O2 -DNDEBUG"
 
-# ARM + GL + Debug
-build_lib_arm64_debug sokol_log           log/sokol_log_macos_arm64_gl_debug SOKOL_GLCORE
-build_lib_arm64_debug sokol_gfx           gfx/sokol_gfx_macos_arm64_gl_debug SOKOL_GLCORE
-build_lib_arm64_debug sokol_app           app/sokol_app_macos_arm64_gl_debug SOKOL_GLCORE
-build_lib_arm64_debug sokol_glue          glue/sokol_glue_macos_arm64_gl_debug SOKOL_GLCORE
-build_lib_arm64_debug sokol_time          time/sokol_time_macos_arm64_gl_debug SOKOL_GLCORE
-build_lib_arm64_debug sokol_audio         audio/sokol_audio_macos_arm64_gl_debug SOKOL_GLCORE
-build_lib_arm64_debug sokol_debugtext     debugtext/sokol_debugtext_macos_arm64_gl_debug SOKOL_GLCORE
-build_lib_arm64_debug sokol_shape         shape/sokol_shape_macos_arm64_gl_debug SOKOL_GLCORE
-build_lib_arm64_debug sokol_gl            gl/sokol_gl_macos_arm64_gl_debug SOKOL_GLCORE
+    # x64 + Metal + Debug
+    build_lib sokol_$lib $lib/sokol_log_macos_x64_metal_debug SOKOL_METAL x86_64 "${dep[@]}" "${extra[@]} -g"
 
-# x64 + GL + Release
-build_lib_x64_release sokol_log         log/sokol_log_macos_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_gfx         gfx/sokol_gfx_macos_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_app         app/sokol_app_macos_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_glue        glue/sokol_glue_macos_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_time        time/sokol_time_macos_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_audio       audio/sokol_audio_macos_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_debugtext   debugtext/sokol_debugtext_macos_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_shape       shape/sokol_shape_macos_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_gl          gl/sokol_gl_macos_x64_gl_release SOKOL_GLCORE
+    # ARM + GL + Release
+    build_lib sokol_$lib $lib/sokol_log_macos_arm64_gl_release SOKOL_GLCORE arm64 "${dep[@]}" "${extra[@]} -O2 -DNDEBUG"
 
-# x64 + GL + Debug
-build_lib_x64_debug sokol_log           log/sokol_log_macos_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_gfx           gfx/sokol_gfx_macos_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_app           app/sokol_app_macos_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_glue          glue/sokol_glue_macos_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_time          time/sokol_time_macos_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_audio         audio/sokol_audio_macos_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_debugtext     debugtext/sokol_debugtext_macos_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_shape         shape/sokol_shape_macos_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_gl            gl/sokol_gl_macos_x64_gl_debug SOKOL_GLCORE
+    # ARM + GL + Debug
+    build_lib sokol_$lib $lib/sokol_log_macos_arm64_gl_debug SOKOL_GLCORE arm64 "${dep[@]}" "${extra[@]} -g"
 
-rm *.o
+    # x64 + GL + Release
+    build_lib sokol_$lib $lib/sokol_log_macos_x64_gl_release SOKOL_GLCORE x86_64 "${dep[@]}" "${extra[@]} -O2 -DNDEBUG"
+
+    # x64 + GL + Debug
+    build_lib sokol_$lib $lib/sokol_log_macos_x64_gl_debug SOKOL_GLCORE x86_64 "${dep[@]}" "${extra[@]} -g"
+done

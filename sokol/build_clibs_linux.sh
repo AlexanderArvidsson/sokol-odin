@@ -1,49 +1,44 @@
 set -e
 
-build_lib_x64_release() {
+build_lib_x64() {
     src=$1
     dst=$2
     backend=$3
+    dep=$4
+    extra=$5
     echo $dst
+
     # static
-    cc -pthread -c -O2 -DNDEBUG -DIMPL -D$backend c/$src.c
-    ar rcs $dst.a $src.o
+    cc -pthread -c -DIMPL -D$backend c/$src.c $extra
+    ar rcs $dst.a $src.o $dep
+
     # shared
-    cc -pthread -shared -O2 -fPIC -DNDEBUG -DIMPL -D$backend -o $dst.so c/$src.c
+    cc -pthread -shared -fPIC -DIMPL -D$backend -o $dst.so c/$src.c $dep $extra
 }
 
-build_lib_x64_debug() {
-    src=$1
-    dst=$2
-    backend=$3
-    echo $dst
-    # static
-    cc -pthread -c -g -DIMPL -D$backend c/$src.c
-    ar rcs $dst.a $src.o
-    # shared
-    cc -pthread -shared -g -fPIC -DIMPL -D$backend -o $dst.so c/$src.c
-}
+libs=(log gfx app glue time audio debugtext shape gl)
 
-# x64 + GL + Release
-build_lib_x64_release sokol_log         log/sokol_log_linux_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_gfx         gfx/sokol_gfx_linux_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_app         app/sokol_app_linux_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_glue        glue/sokol_glue_linux_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_time        time/sokol_time_linux_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_audio       audio/sokol_audio_linux_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_debugtext   debugtext/sokol_debugtext_linux_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_shape       shape/sokol_shape_linux_x64_gl_release SOKOL_GLCORE
-build_lib_x64_release sokol_gl          gl/sokol_gl_linux_x64_gl_release SOKOL_GLCORE
+imgui_path=$(./check_imgui_path.sh)
+if [[ $? -eq 0 && -n "$imgui_path" ]]; then
+    libs=(imgui)
+fi
 
-# x64 + GL + Debug
-build_lib_x64_debug sokol_log           log/sokol_log_linux_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_gfx           gfx/sokol_gfx_linux_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_app           app/sokol_app_linux_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_glue          glue/sokol_glue_linux_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_time          time/sokol_time_linux_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_audio         audio/sokol_audio_linux_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_debugtext     debugtext/sokol_debugtext_linux_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_shape         shape/sokol_shape_linux_x64_gl_debug SOKOL_GLCORE
-build_lib_x64_debug sokol_gl            gl/sokol_gl_linux_x64_gl_debug SOKOL_GLCORE
+echo "building libs (${libs[@]})"
+
+for lib in "${libs[@]}"; do
+    dep=""
+    extra=""
+
+    if [[ $lib == imgui ]]; then
+        dep="$IMGUI_PATH/c_imgui.o $IMGUI_PATH/imgui.o $IMGUI_PATH/imgui_demo.o $IMGUI_PATH/imgui_draw.o $IMGUI_PATH/imgui_widgets.o $IMGUI_PATH/imgui_tables.o"
+        extra="-DImTextureID=uint64_t -DSOKOL_IMGUI_CPREFIX=ImGui_ -DCIMGUI_HEADER_PATH=\"$IMGUI_PATH/c_imgui.h\" -lstdc++"
+    fi
+
+    # x64 + GL + Release
+    build_lib_x64 "sokol_$lib" "$lib/sokol_${lib}_linux_x64_gl_release" SOKOL_GLCORE "${dep[@]}" "${extra[@]} -O2 -DNDEBUG"
+
+    # x64 + GL + Debug
+    build_lib_x64 "sokol_$lib" "$lib/sokol_${lib}_linux_x64_gl_debug" SOKOL_GLCORE "${dep[@]}" "${extra[@]} -g"
+done
 
 rm *.o
