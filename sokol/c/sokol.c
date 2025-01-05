@@ -14,3 +14,16 @@
 #include "sokol_gl.h"
 #include "sokol_shape.h"
 #include "sokol_debugtext.h"
+
+#if defined(SOKOL_INCLUDE_IMGUI)
+#if defined(IMPL)
+#ifndef CIMGUI_HEADER_PATH
+#define CIMGUI_HEADER_PATH "cimgui.h"
+#endif
+// NOTE: this is only needed for the old cimgui.h bindings
+#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
+#include CIMGUI_HEADER_PATH
+#endif
+
+#include "sokol_imgui.h"
+#endif
