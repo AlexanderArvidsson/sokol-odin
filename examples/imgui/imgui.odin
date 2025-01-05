@@ -34,7 +34,7 @@ init :: proc "c" () {
     })
 }
 
-event :: proc(ev: ^sapp.Event) {
+event :: proc "c" (ev: ^sapp.Event) {
     // If ImGui handled the event, we should stop our own handling
     if handled := simgui.handle_event(ev^); handled {return}
 }
@@ -53,6 +53,8 @@ frame :: proc "c" () {
     )
 
     //=== UI CODE STARTS HERE
+    ig.ShowDemoWindow()
+
     ig.SetNextWindowPos(ig.Vec2{10, 10}, .Once)
     ig.SetNextWindowSize(ig.Vec2{400, 400}, .Once)
     ig.Begin("Hello Dear ImGui!")
@@ -80,8 +82,9 @@ main :: proc () {
         init_cb = init,
         frame_cb = frame,
         cleanup_cb = cleanup,
-        width = 400,
-        height = 300,
+	event_cb = event,
+        width = 960,
+        height = 540,
         window_title = "saudio",
         icon = { sokol_default = true },
         logger = { func = slog.func },
