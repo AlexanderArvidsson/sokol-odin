@@ -21,6 +21,8 @@ IF DEFINED IMGUI_PATH (
     )
 
     set sources=!sources! imgui
+    set "extra_imgui=/DImTextureID=uint64_t /DSOKOL_IMGUI_CPREFIX=ImGui_ /DCIMGUI_HEADER_PATH=\"%IMGUI_PATH%\c_imgui.h\""
+    set "dep_imgui=%IMGUI_PATH%\c_imgui.obj %IMGUI_PATH%\imgui.obj %IMGUI_PATH%\imgui_demo.obj %IMGUI_PATH%\imgui_draw.obj %IMGUI_PATH%\imgui_widgets.obj %IMGUI_PATH%\imgui_tables.obj"
 )
 
 echo building libs (%sources%)
@@ -30,8 +32,8 @@ for %%s in (%sources%) do (
     set "dep="
 
     if %%s == imgui (
-        set "extra=/DImTextureID=uint64_t /DSOKOL_IMGUI_CPREFIX=ImGui_ /DCIMGUI_HEADER_PATH=\"%IMGUI_PATH%\c_imgui.h\""
-        set "dep=%IMGUI_PATH%\c_imgui.obj %IMGUI_PATH%\imgui.obj %IMGUI_PATH%\imgui_demo.obj %IMGUI_PATH%\imgui_draw.obj %IMGUI_PATH%\imgui_widgets.obj %IMGUI_PATH%\imgui_tables.obj"
+        set "extra=!extra_imgui!"
+        set "dep=!dep_imgui!"
     )
 
     REM D3D11 Static Debug
@@ -56,7 +58,8 @@ for %%s in (%sources%) do (
 )
 
 if defined IMGUI_PATH (
-    set "extra=!extra! /DSOKOL_INCLUDE_IMGUI"
+    set "extra=!extra_imgui! /DSOKOL_INCLUDE_IMGUI"
+    set "dep=!dep_imgui!"
 )
 
 REM D3D11 Debug DLL
